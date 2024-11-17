@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace ComponentSystem
 {
-    public class SignalsBranch : IUnderritableSignalsContainer, IInvokableSignalContainer
+    public class SignalsBranch : IUnderritableSignalsContainer, IInvokableSignalContainer, ISignalRegistrator
     {
         private Dictionary<Type, int> _LayerIndexByType;
         private List<Dictionary<Type, Action<IDataSignal>>> _allLayers;
@@ -40,20 +40,34 @@ namespace ComponentSystem
             return new SignalsBranch(this);
         }
 
+        public void RegisterDataSignal<T>() where T : IDataSignal
+        {
+            Type signalType = typeof(T);
+
+            if (IsSignalRegistrated(signalType))
+                throw new Exception($"Signal with type {signalType} has already been registered");
+
+            _allLayers[_LayerIndex].Add(signalType, (d) => { });
+            _LayerIndexByType.Add(signalType, _LayerIndex);
+        }
+
         public void Subscribe<T>(Action<IDataSignal> onGetSignalAction) where T : class, IDataSignal
         {
-            RegisterDataSignal<T>();
+            Type signalType = typeof(T);
 
-            Type currentType = typeof(T);
+            if (IsSignalRegistrated(signalType) == false)
+                throw new Exception($"It is impossible to subscribe to an signal {signalType} in " +
+                    $"the current branch with layer index {_LayerIndex}" +
+                    $" because this signal has not been registered");
 
-            _allLayers[_LayerIndexByType[currentType]][currentType] += onGetSignalAction;
+            _allLayers[_LayerIndexByType[signalType]][signalType] += onGetSignalAction;
         }
 
         public void Unsubscribe<T>(Action<IDataSignal> onGetSignalAction) where T : class, IDataSignal
         {
             Type currentType = typeof(T);
 
-            if (_LayerIndexByType.ContainsKey(currentType) == false) 
+            if (_LayerIndexByType.ContainsKey(currentType) == false)
                 return;
 
             _allLayers[_LayerIndexByType[currentType]][currentType] -= onGetSignalAction;
@@ -71,20 +85,22 @@ namespace ComponentSystem
 
         public ISignalActivator<T> GetSignalActivator<T>() where T : class, IDataSignal
         {
-            RegisterDataSignal<T>();
+            if (IsSignalRegistrated<T>() == false)
+                throw new Exception($"It is impossible to get activator of signal {typeof(T)} in " +
+                    $"the current branch with layer index {_LayerIndex}" +
+                    $" because this signal has not been registered");
 
             return new DefaultSignalActivator<T>(this);
         }
 
-        private void RegisterDataSignal<T>() where T : IDataSignal
+        private bool IsSignalRegistrated<T>() where T : class, IDataSignal
         {
-            Type signalType = typeof(T);
+            return IsSignalRegistrated(typeof(T));
+        }
 
-            if (_LayerIndexByType.ContainsKey(signalType))
-                return;
-
-            _allLayers[_LayerIndex].Add(signalType, (d) => { });
-            _LayerIndexByType.Add(signalType, _LayerIndex);
+        private bool IsSignalRegistrated(Type type)
+        {
+            return _LayerIndexByType.ContainsKey(type);
         }
     }
 }

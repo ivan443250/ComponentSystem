@@ -53,6 +53,8 @@ namespace ComponentSystem
 
             _underritableSignalsContainer = signalsBranch;
 
+            RegisterSignals(signalsBranch);
+
             SetSignalActivator(signalsBranch);
 
             Initialize();
@@ -64,6 +66,8 @@ namespace ComponentSystem
         {
             return new(_accessModifier, _abstractRepresentation);
         }
+
+        protected virtual void RegisterSignals(ISignalRegistrator signalRegistrator) { }
 
         protected virtual void Initialize() { }
 
