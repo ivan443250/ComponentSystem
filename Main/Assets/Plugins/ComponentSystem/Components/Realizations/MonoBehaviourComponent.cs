@@ -18,10 +18,12 @@ namespace ComponentSystem
 
         private ComponentSet _componentSet;
 
-        private IUnderritableSignalsContainer _underritableSignalsContainer;
+        private SignalsBranch _currentBranch;
 
         private event Action _enable;
         private event Action _disable;
+
+        private bool _isEnabled = false;
 
         public Type[] GetDependentComponentTypes()
         {
@@ -51,15 +53,15 @@ namespace ComponentSystem
                 foreach (FieldInfo field in _fieldsWithDependentComponents)
                     field.SetValue(this, _dependentComponentsSet.GetComponent(field.FieldType));
 
-            _underritableSignalsContainer = signalsBranch;
+            _currentBranch = signalsBranch;
 
             RegisterSignals(signalsBranch);
 
             SetSignalActivator(signalsBranch);
 
-            Initialize();
-
             InitializeChildren(signalsBranch);
+
+            Initialize();
         }
 
         public ComponentData GetComponentData()
@@ -75,10 +77,19 @@ namespace ComponentSystem
         {
             Action<IDataSignal> dataSignalAction = (ds) => onGetSignalAction.Invoke(ds as T);
 
-            _underritableSignalsContainer.Subscribe<T>(dataSignalAction);
+            if (_isEnabled)
+                _currentBranch.Subscribe<T>(dataSignalAction);
 
-            _enable += () => _underritableSignalsContainer.Subscribe<T>(dataSignalAction);
-            _disable += () => _underritableSignalsContainer.Unsubscribe<T>(dataSignalAction);
+            _enable += () => _currentBranch.Subscribe<T>(dataSignalAction);
+            _disable += () => _currentBranch.Unsubscribe<T>(dataSignalAction);
+        }
+
+        protected T InstanceComponentPrefab<T>(T componentPrefab) where T : MonoBehaviourComponent
+        {
+            T instance = Instantiate(componentPrefab, transform);
+            instance.Initialize(@ComponentGetter, _currentBranch.GetNext());
+            instance.OnEnable();
+            return instance;
         }
 
         private IComponent[] GetChildrenComponents()
@@ -119,6 +130,7 @@ namespace ComponentSystem
 
         private void OnEnable()
         {
+            _isEnabled = true;
             _enable?.Invoke();
         }
 
