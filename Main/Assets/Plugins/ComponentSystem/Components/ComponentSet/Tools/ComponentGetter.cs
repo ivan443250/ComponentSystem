@@ -13,6 +13,19 @@ namespace ComponentSystem
             _componentDictionary = componentDictionary;
         }
 
+        public bool TryGetComponent<T>(out T component) where T : class, IComponent
+        {
+            component = null;
+
+            if (TryGetComponent(out object componentObj, typeof(T), AccessModifier.Everything))
+            {
+                component = componentObj as T;
+                return true;
+            }
+
+            return false;
+        }
+
         public bool TryGetComponent(out object component, Type type, AccessModifier accessModifier)
         {
             component = null;
