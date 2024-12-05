@@ -7,14 +7,19 @@ namespace ComponentSystem
     {
         [SerializeField] private ServiceManager _serviceManager;
 
+        [SerializeField] private BaseSceneSignalRegistrator _sceneSignalRegistrator;
+
         private void Awake()
         {
-            _serviceManager.Initialize(new ComponentGetter(new ComponentDictionary()), new SignalsBranch());
+            SignalsBranch main = new SignalsBranch();
+            _sceneSignalRegistrator?.RegisterSignals(main);
+
+            _serviceManager?.Initialize(new ComponentGetter(new ComponentDictionary()), main);
 
             IComponent[] components = GetComponent<ComponentContainer>().InstallOutside();
 
             ComponentSet componentSet = new(components);
-            componentSet.InitializeComponents(new SignalsBranch());
+            componentSet.InitializeComponents(main);
         }
     }
 }
