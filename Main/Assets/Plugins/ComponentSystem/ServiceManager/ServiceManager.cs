@@ -12,12 +12,12 @@ namespace ComponentSystem
             _instance = this;
         }
 
-        public static T GetService<T>() where T : MonoBehaviourComponent
+        public static T GetService<T>()
         {
-            if (_instance.ComponentGetter.TryGetComponent(out T service) == false)
+            if (_instance.ComponentGetter.TryGetComponent(out object service, typeof(T), AccessModifier.Everything) == false)
                 throw new System.Exception($"Service {typeof(T)} was not found");
 
-            return service;
+            return (T)service;
         }
     }
 }
