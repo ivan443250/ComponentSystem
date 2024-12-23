@@ -73,15 +73,24 @@ namespace ComponentSystem
 
         protected virtual void Initialize() { }
 
-        protected void Subscribe<T>(Action<T> onGetSignalAction) where T : class, IDataSignal 
+        protected IDisposable Subscribe<T>(Action<T> onGetSignalAction) where T : class, IDataSignal 
         {
             Action<IDataSignal> dataSignalAction = (ds) => onGetSignalAction.Invoke(ds as T);
 
-            if (_isEnabled)
-                _currentBranch.Subscribe<T>(dataSignalAction);
+            Action subscribeAction = () => _currentBranch.Subscribe<T>(dataSignalAction);
+            Action unSubscribeAction = () => _currentBranch.Unsubscribe<T>(dataSignalAction);
 
-            _enable += () => _currentBranch.Subscribe<T>(dataSignalAction);
-            _disable += () => _currentBranch.Unsubscribe<T>(dataSignalAction);
+            if (_isEnabled)
+                subscribeAction.Invoke();
+
+            _enable += subscribeAction;
+            _disable += unSubscribeAction;
+
+            return new AbstractUnsubscriber(() => 
+            {
+                _enable -= subscribeAction;
+                _disable -= unSubscribeAction;
+            });
         }
 
         protected T InstanceComponentPrefab<T>(T componentPrefab) where T : MonoBehaviourComponent
@@ -137,6 +146,21 @@ namespace ComponentSystem
         private void OnDisable()
         {
             _disable?.Invoke();
+        }
+
+        private class AbstractUnsubscriber : IDisposable
+        {
+            private Action _unsubdcribe;
+
+            public AbstractUnsubscriber(Action unsubdcribe)
+            {
+                _unsubdcribe = unsubdcribe;
+            }
+
+            public void Dispose()
+            {
+                _unsubdcribe.Invoke();
+            }
         }
     }
 }
